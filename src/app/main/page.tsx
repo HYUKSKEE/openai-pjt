@@ -2,33 +2,46 @@
 import styled from "styled-components";
 import { useState } from "react";
 import Aside from "@/components/Aside";
+import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
 function Main() {
-  const [message, setMessage] = useState<string>("");
-  const [resMessage, setResMessage] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [questions, setQuestions] = useState<any>({ text: "", id: 0 });
+  const [chat, setChat] = useState<any>();
+  const [waitAnswer, setWaitAnswer] = useState<boolean>(false);
 
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessage(e.target.value);
+  const chatAi = async (data: string) => {
+    try {
+      const pos = await axios.post("http://localhost:4000");
+      console.log(pos);
+
+      setChat((prev: any) => [
+        ...prev,
+        { text: pos.data.choices[0].text, id: pos.data.id },
+      ]);
+      setWaitAnswer((prev) => !prev);
+    } catch (error) {
+      console.log(error);
+      setWaitAnswer((prev) => !prev);
+      alert("오류가 발생하였습니다.");
+      setQuestions("");
+      setChat([]);
+    }
   };
 
-  const clickEvent = (e) => {
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuestions({ text: e.target.value, id: 0 });
+  };
+  console.log("questions :", questions);
+  const submitEvent = (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    fetch("http://localhost:4000", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: message }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setResMessage(data.message);
-        setIsLoading(false);
-      });
-
-    setMessage("");
+    if (!questions) {
+      return null;
+    }
+    setWaitAnswer((prev) => !prev);
+    setChat((prev: any) => [...prev, { text: questions, id: uuidv4() }]);
+    chatAi(questions);
+    setQuestions("");
   };
 
   return (
@@ -39,13 +52,18 @@ function Main() {
           <h1>open AI Chat 콘솔에 오신것을 환영합니다.</h1>
         </TitleBox>
         <ChatContainer>
+          <div>{chat}</div>
           <>
-            <Robot isLoading={isLoading} />
-            {resMessage !== "" && <ChatBox>{resMessage}</ChatBox>}
+            <Robot isLoading={waitAnswer} />
+            {chat !== "" && <ChatBox>{chat}</ChatBox>}
           </>
         </ChatContainer>
-        <SearchBox onSubmit={clickEvent}>
-          <SearchInput type="text" onChange={handleInput} value={message} />
+        <SearchBox onSubmit={submitEvent}>
+          <SearchInput
+            type="text"
+            onChange={handleInput}
+            value={questions.text}
+          />
           <SearchBtn>검색</SearchBtn>
         </SearchBox>
       </Content>
